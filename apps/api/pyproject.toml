@@ -1,0 +1,19 @@
+[project]
+name = "prometheus-api"
+version = "0.4.0"
+description = "PROMETHEUS backend for predictive AI agent governance."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.116.1",
+  "google-genai>=1.33.0",
+  "httpx>=0.28.1",
+  "pyyaml>=6.0.2",
+  "pydantic>=2.11.7",
+  "pydantic-settings>=2.10.1",
+  "pytest>=8.4.1",
+  "uvicorn[standard]>=0.35.0"
+]
+
+[tool.uv]
+package = false

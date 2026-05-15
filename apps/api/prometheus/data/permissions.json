@@ -1,0 +1,44 @@
+{
+  "agent_a": {
+    "allowed_tools": ["crm.query", "crm.note", "docs.read"],
+    "denied_tools": ["email.send_external", "finance.export_external", "crm.export", "hr.records.export"],
+    "human_review_tools": ["refund.execute"],
+    "quarantine_tools": ["contracts.rewrite"]
+  },
+  "agent_b": {
+    "allowed_tools": ["crm.query", "crm.note", "docs.read"],
+    "denied_tools": ["email.send_external", "finance.export_external", "crm.export", "hr.records.export"],
+    "human_review_tools": ["refund.execute", "contracts.rewrite"],
+    "quarantine_tools": []
+  },
+  "agent_c": {
+    "allowed_tools": ["finance.read", "ledger.reconcile", "crm.query"],
+    "denied_tools": ["email.send_external", "crm.export", "hr.records.export"],
+    "human_review_tools": ["finance.export_external", "refund.execute"],
+    "quarantine_tools": ["contracts.rewrite"]
+  },
+  "agent_d": {
+    "allowed_tools": ["docs.read", "crm.query"],
+    "denied_tools": ["email.send_external", "finance.export_external", "crm.export", "hr.records.export", "refund.execute"],
+    "human_review_tools": ["contracts.rewrite"],
+    "quarantine_tools": []
+  },
+  "agent_e": {
+    "allowed_tools": ["finance.read", "ledger.reconcile", "crm.query"],
+    "denied_tools": ["finance.export_external", "email.send_external", "crm.export", "hr.records.export"],
+    "human_review_tools": ["refund.execute", "contracts.rewrite"],
+    "quarantine_tools": []
+  },
+  "agent_f": {
+    "allowed_tools": ["docs.index", "docs.read", "crm.query"],
+    "denied_tools": ["email.send_external", "finance.export_external", "hr.records.export"],
+    "human_review_tools": ["crm.export", "refund.execute"],
+    "quarantine_tools": ["contracts.rewrite"]
+  },
+  "agent_security": {
+    "allowed_tools": ["vuln.research", "report.write"],
+    "denied_tools": ["exploit.generate", "exploit.execute", "auth.bypass_test", "email.send_external"],
+    "human_review_tools": ["scanner.run"],
+    "quarantine_tools": []
+  }
+}

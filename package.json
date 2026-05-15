@@ -1,0 +1,23 @@
+{
+  "name": "prometheus",
+  "private": true,
+  "packageManager": "pnpm@10.29.3",
+  "scripts": {
+    "dev": "concurrently -n web,api -c \"yellow.bold,red.bold\" \"pnpm --filter @prometheus/web dev\" \"pnpm dev:api\"",
+    "dev:api": "cd apps/api && uv run uvicorn prometheus.main:app --reload --port 8000",
+    "dev:web": "pnpm --filter @prometheus/web dev",
+    "build": "pnpm --filter @prometheus/web build",
+    "typecheck": "pnpm --filter @prometheus/web typecheck",
+    "test": "cd apps/api && uv run python -m pytest",
+    "seed": "python scripts/seed.py",
+    "init-db": "python scripts/init_db.py",
+    "screenshots": "node scripts/capture_screenshots.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "concurrently": "^9.2.1",
+    "playwright": "^1.55.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

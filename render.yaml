@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: prometheus-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    rootDir: ./apps/api
+    autoDeploy: false
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_REASONING_MODEL
+        value: gemini-3.1-pro-preview
+      - key: GEMINI_FAST_MODEL
+        value: gemini-3-flash-preview
+      - key: GEMINI_LITE_MODEL
+        value: gemini-3.1-flash-lite-preview
+      - key: LOBSTERTRAP_ENABLED
+        value: "false"
+      - key: DATABASE_PATH
+        value: prometheus/data/prometheus.db

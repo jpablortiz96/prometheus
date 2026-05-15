@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#0A0A0B"/>
+  <rect x="40" y="40" width="1120" height="640" fill="#131316" stroke="#2E2D29"/>
+  <text x="90" y="110" fill="#F5F2EA" font-family="Arial" font-size="44">PROMETHEUS Dashboard Placeholder</text>
+  <text x="90" y="154" fill="#FFA940" font-family="Arial" font-size="22">Replace with a real screenshot before submission.</text>
+</svg>

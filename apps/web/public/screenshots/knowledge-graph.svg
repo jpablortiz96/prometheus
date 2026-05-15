@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#0A0A0B"/>
+  <rect x="100" y="100" width="1000" height="520" fill="#131316" stroke="#2E2D29"/>
+  <text x="160" y="190" fill="#F5F2EA" font-family="Arial" font-size="42">Knowledge Graph Placeholder</text>
+  <text x="160" y="232" fill="#FFA940" font-family="Arial" font-size="22">Replace with the rendered graph panel.</text>
+</svg>

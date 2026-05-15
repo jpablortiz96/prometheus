@@ -1,0 +1,95 @@
+version: 1
+policy_name: prometheus-enterprise-guardrails
+name: prometheus-enterprise-guardrails
+description: >
+  PROMETHEUS policy floor built on Veea Lobster Trap DPI proxy concepts.
+  These rules represent the deterministic inspection layer below the
+  behavioral prediction, tribunal reasoning, and audit narrative stack.
+default_action: allow
+metadata:
+  sponsor_floor: Veea Lobster Trap DPI
+  overlay_product: PROMETHEUS
+  policy_packs:
+    - soc2
+    - hipaa
+    - finance
+    - gdpr
+rules:
+  - id: prompt_injection
+    description: Block direct attempts to override instruction hierarchy.
+    action: block
+    severity: critical
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)ignore previous instructions
+        - field: prompt
+          type: regex
+          pattern: (?i)reveal your system prompt
+        - field: prompt
+          type: regex
+          pattern: (?i)dan has no rules
+
+  - id: credential_harvesting
+    description: Block attempts to enumerate or export secrets.
+    action: block
+    severity: critical
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)environment variables
+        - field: prompt
+          type: regex
+          pattern: (?i)(token|secret|api[_ -]?key|password)
+
+  - id: pii_extraction
+    description: Block extraction of regulated customer, patient, or identity data.
+    action: block
+    severity: critical
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)(ssn|social security|patient records|credit card|pii)
+
+  - id: external_exfiltration
+    description: Block delivery of enterprise data to external destinations.
+    action: block
+    severity: critical
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)(gmail\.com|@evil\.com|dropbox|slack\.com|external domain)
+
+  - id: dangerous_filesystem_paths
+    description: Quarantine attempts to access sensitive local or server paths.
+    action: quarantine
+    severity: high
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)(/etc/passwd|~/.ssh|/var/lib|c:\\users\\.*(secret|credential))
+
+  - id: risky_shell_commands
+    description: Block destructive or persistence-oriented shell commands.
+    action: block
+    severity: critical
+    match:
+      any:
+        - field: prompt
+          type: regex
+          pattern: (?i)(rm -rf|curl.+\|.+sh|powershell.+-enc|chmod 777|del /s /q)
+
+  - id: declared_vs_detected_intent_mismatch
+    description: Quarantine when the declared mission and detected action do not align.
+    action: quarantine
+    severity: high
+    match:
+      any:
+        - field: declared_intent
+          type: mismatch
+          against: detected_intent
