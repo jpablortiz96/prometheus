@@ -42,6 +42,11 @@ class Settings(BaseSettings):
         default=",".join(DEFAULT_CORS_ALLOWED_ORIGINS),
         validation_alias=AliasChoices("CORS_ALLOWED_ORIGINS", "CORS_ORIGINS"),
     )
+    cors_allowed_origin_regex: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CORS_ALLOWED_ORIGIN_REGEX", "CORS_ORIGIN_REGEX"),
+    )
+    integration_status_debug: bool = False
     default_demo_duration_seconds: int = 90
     sponsor_status: str = "Built on Veea Lobster Trap DPI + Gemini"
 
@@ -58,6 +63,31 @@ class Settings(BaseSettings):
             if normalized and normalized not in origins:
                 origins.append(normalized)
         return origins
+
+    def resolved_cors_allowed_origin_regex(self) -> str | None:
+        value = (self.cors_allowed_origin_regex or "").strip()
+        return value or None
+
+    def resolve_repo_path(
+        self,
+        configured_path: str,
+        *,
+        prefer_root: bool = True,
+    ) -> Path | None:
+        value = configured_path.strip()
+        if not value:
+            return None
+
+        raw = Path(value)
+        if raw.is_absolute():
+            return raw.resolve()
+
+        bases = (ROOT_DIR, API_DIR) if prefer_root else (API_DIR, ROOT_DIR)
+        candidates = [(base / raw).resolve() for base in bases]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
 
 
 @lru_cache(maxsize=1)

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 
 from prometheus import __version__
 from prometheus.core.config import get_settings
@@ -137,13 +137,14 @@ app = FastAPI(
     title="PROMETHEUS API",
     version=__version__,
     lifespan=lifespan,
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json",
+    docs_url="/docs",
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().resolved_cors_allowed_origins(),
+    allow_origin_regex=get_settings().resolved_cors_allowed_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Accept"],
@@ -152,6 +153,16 @@ app.add_middleware(
 
 def get_runtime() -> PrometheusRuntime:
     return app.state.runtime
+
+
+@app.get("/api/docs", include_in_schema=False)
+async def legacy_docs_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/api/openapi.json", include_in_schema=False)
+async def legacy_openapi_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/openapi.json")
 
 
 @app.get("/health", response_model=HealthResponse)

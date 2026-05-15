@@ -12,7 +12,7 @@ export function getGeminiStatusCopy(status: IntegrationStatus) {
 
   if (status.geminiConfigured) {
     return {
-      headline: "Gemini configured · fallback active",
+      headline: "Gemini configured - fallback active",
       detail: "Backend validation failed. Deterministic fallback is active.",
       streamLabel: "Fallback active",
       error: status.geminiLastError,
@@ -20,7 +20,7 @@ export function getGeminiStatusCopy(status: IntegrationStatus) {
   }
 
   return {
-    headline: "Gemini simulated · deterministic fallback active",
+    headline: "Gemini simulated - deterministic fallback active",
     detail: "No backend Gemini API key detected.",
     streamLabel: "Deterministic fallback",
     error: null,
@@ -39,7 +39,7 @@ export function getLobsterTrapStatusCopy(status: IntegrationStatus) {
 
   if (status.lobsterTrapEnabled) {
     return {
-      headline: "Veea Lobster Trap configured · fallback active",
+      headline: "Veea Lobster Trap configured - fallback active",
       detail: "PROMETHEUS is configured for Lobster Trap, but deterministic fallback is currently active.",
       badge: "Deterministic fallback active",
       note: status.lobsterTrapLastError,

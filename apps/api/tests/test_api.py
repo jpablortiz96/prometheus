@@ -72,7 +72,9 @@ def test_integrations_status(client: TestClient) -> None:
     assert payload["geminiMode"] in {"connected", "simulated"}
     assert payload["lobsterTrapEnabled"] is False
     assert payload["lobsterTrapBinFound"] is False
-    assert payload["lobsterTrapPolicyPath"].endswith("infra\\lobstertrap\\prometheus_policy.yaml") or payload["lobsterTrapPolicyPath"].endswith("infra/lobstertrap/prometheus_policy.yaml")
+    assert payload["lobsterTrapPolicyPath"] == "infra/lobstertrap/prometheus_policy.yaml"
+    assert ":" not in payload["lobsterTrapPolicyPath"]
+    assert payload["lobsterTrapBinPath"] == ""
     assert payload["geminiReasoningModel"] == "gemini-3.1-pro-preview"
     assert payload["geminiFastModel"] == "gemini-3-flash-preview"
     assert payload["geminiLiteModel"] == "gemini-3.1-flash-lite-preview"

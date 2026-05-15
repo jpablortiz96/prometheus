@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from prometheus.core.config import API_DIR, ROOT_DIR, Settings
+from prometheus.core.config import ROOT_DIR, Settings
 from prometheus.models.domain import (
     IntegrationStatus,
     LobsterTrapDebugResponse,
@@ -36,7 +36,6 @@ class LobsterTrapBridge:
         self.bin_path = self._resolve_binary_path(settings.lobstertrap_bin)
         self.policy_path = self._resolve_file_path(
             settings.lobstertrap_policy_path,
-            prefer_root=not settings.lobstertrap_policy_path.startswith(".."),
             add_windows_suffix=False,
         )
         self._policy_document: dict[str, Any] | None = None
@@ -182,7 +181,7 @@ class LobsterTrapBridge:
                 declared_intent=declared_intent,
                 agent_id=agent_id,
                 policy_pack=policy_pack,
-                fallback_reason=self._last_error,
+                fallback_reason=self._status_error() or "Lobster Trap CLI inspection timed out.",
                 raw_output=raw_output,
             )
 
@@ -197,7 +196,7 @@ class LobsterTrapBridge:
                 declared_intent=declared_intent,
                 agent_id=agent_id,
                 policy_pack=policy_pack,
-                fallback_reason=self._last_error,
+                fallback_reason=self._status_error() or "Lobster Trap CLI inspection failed.",
                 raw_output=raw_output,
             )
 
@@ -232,11 +231,11 @@ class LobsterTrapBridge:
                 "agent_id": agent_id,
                 "policy_pack": policy_pack,
                 "policy_name": self.policy_name,
-                "policy_file": str(self.policy_path) if self.policy_path else "",
+                "policy_file": self._display_path(self.policy_path),
                 "policy_file_found": self.policy_file_found,
                 "policy_rule_count": self.policy_rule_count,
                 "cli_execution_time_ms": self._last_execution_time_ms,
-                "lobstertrap_bin": str(self.bin_path) if self.bin_path else "",
+                "lobstertrap_bin": self._display_path(self.bin_path),
                 "lobstertrap_bin_found": self.bin_found,
                 "declared_intent": declared_intent,
                 "detected_intent": detected_intent,
@@ -273,13 +272,17 @@ class LobsterTrapBridge:
             gemini_reasoning_model=self.settings.gemini_reasoning_model,
             gemini_fast_model=self.settings.gemini_fast_model,
             gemini_lite_model=self.settings.gemini_lite_model,
-            gemini_last_error=gemini_last_error,
+            gemini_last_error=self._sanitize_gemini_error(
+                gemini_last_error,
+                gemini_configured=gemini_configured,
+                gemini_available=gemini_available,
+            ),
             lobster_trap_enabled=self.enabled,
             lobster_trap_available=self.cli_available,
             lobster_trap_bin_found=self.bin_found,
             lobster_trap_mode=self.mode,  # type: ignore[arg-type]
-            lobster_trap_bin_path=str(self.bin_path) if self.bin_path else "",
-            lobster_trap_policy_path=str(self.policy_path) if self.policy_path else "",
+            lobster_trap_bin_path=self._display_path(self.bin_path),
+            lobster_trap_policy_path=self._display_path(self.policy_path),
             lobster_trap_last_error=self.last_error,
             policy_file_found=self.policy_file_found,
             policy_rule_count=self.policy_rule_count,
@@ -331,26 +334,41 @@ class LobsterTrapBridge:
             inspect_test_stdout_preview=self._truncate_text(inspect_result.stdout.strip(), 800),
             inspect_test_stderr_preview=self._truncate_text(inspect_result.stderr.strip(), 800),
             inspect_test_elapsed_ms=inspect_result.elapsed_ms,
-            last_error=self.last_error,
+            last_error=self._status_error(debug=True),
         )
 
-    def _status_error(self) -> str | None:
+    def _status_error(self, *, debug: bool = False) -> str | None:
         if not self.enabled:
             return None
         if not self.settings.lobstertrap_bin.strip():
-            return "LOBSTERTRAP_BIN is empty."
+            return "LOBSTERTRAP_BIN is empty." if debug else "LOBSTERTRAP_BIN is not configured."
         if not self.bin_found:
-            return f"Lobster Trap binary not found: {self.settings.lobstertrap_bin}"
+            return (
+                f"Lobster Trap binary not found: {self.settings.lobstertrap_bin}"
+                if debug
+                else "Lobster Trap binary not found."
+            )
         if not self.bin_executable:
-            return f"Lobster Trap binary is not executable: {self.bin_path}"
+            return (
+                f"Lobster Trap binary is not executable: {self.bin_path}"
+                if debug
+                else "Lobster Trap binary is not executable."
+            )
         if not self.settings.lobstertrap_policy_path.strip():
-            return "LOBSTERTRAP_POLICY_PATH is empty."
+            return (
+                "LOBSTERTRAP_POLICY_PATH is empty."
+                if debug
+                else "LOBSTERTRAP_POLICY_PATH is not configured."
+            )
         if not self.policy_file_found:
             return (
-                "Lobster Trap policy file not found: "
-                f"{self.settings.lobstertrap_policy_path}"
+                f"Lobster Trap policy file not found: {self.settings.lobstertrap_policy_path}"
+                if debug
+                else "Lobster Trap policy file not found."
             )
-        return self._last_error
+        if debug:
+            return self._truncate_text(self._last_error, 320)
+        return "Lobster Trap CLI unavailable. Deterministic fallback is active." if self._last_error else None
 
     def _resolve_binary_path(self, configured_path: str) -> Path | None:
         if not configured_path.strip():
@@ -360,7 +378,6 @@ class LobsterTrapBridge:
             return Path(direct).resolve()
         return self._resolve_file_path(
             configured_path,
-            prefer_root=False,
             add_windows_suffix=True,
         )
 
@@ -368,29 +385,14 @@ class LobsterTrapBridge:
         self,
         configured_path: str,
         *,
-        prefer_root: bool,
         add_windows_suffix: bool,
     ) -> Path | None:
         if not configured_path.strip():
             return None
-        raw = Path(configured_path)
-        if raw.is_absolute():
-            return self._resolve_windows_variant(raw, add_windows_suffix) or raw.resolve()
-
-        bases = [ROOT_DIR, API_DIR] if prefer_root else [API_DIR, ROOT_DIR]
-        candidates: list[Path] = []
-        for base in bases:
-            candidate = (base / raw).resolve()
-            candidates.append(candidate)
-            variant = self._resolve_windows_variant(candidate, add_windows_suffix)
-            if variant is not None and variant not in candidates:
-                candidates.append(variant)
-
-        for candidate in candidates:
-            if candidate.exists():
-                return candidate
-
-        return candidates[0] if candidates else None
+        resolved = self.settings.resolve_repo_path(configured_path, prefer_root=True)
+        if resolved is None:
+            return None
+        return self._resolve_windows_variant(resolved, add_windows_suffix) or resolved
 
     def _resolve_windows_variant(
         self,
@@ -401,9 +403,12 @@ class LobsterTrapBridge:
             return None
         if candidate.suffix.lower() == ".exe":
             return candidate.resolve()
-        return candidate.with_suffix(
+        variant = candidate.with_suffix(
             f"{candidate.suffix}.exe" if candidate.suffix else ".exe"
         ).resolve()
+        if variant.exists():
+            return variant
+        return candidate.resolve()
 
     def _is_executable(self, path: Path | None) -> bool:
         if path is None or not path.is_file():
@@ -454,6 +459,30 @@ class LobsterTrapBridge:
                 stderr=str(exc),
                 elapsed_ms=elapsed_ms,
             )
+
+    def _display_path(self, path: Path | None) -> str:
+        if path is None:
+            return ""
+        resolved = path.resolve()
+        if self.settings.integration_status_debug:
+            return str(resolved)
+        try:
+            return resolved.relative_to(ROOT_DIR.resolve()).as_posix()
+        except ValueError:
+            return resolved.name
+
+    def _sanitize_gemini_error(
+        self,
+        error: str | None,
+        *,
+        gemini_configured: bool,
+        gemini_available: bool,
+    ) -> str | None:
+        if gemini_available or not gemini_configured or error is None:
+            return None
+        if self.settings.integration_status_debug:
+            return self._truncate_text(error, 320)
+        return "Gemini backend validation failed. Deterministic fallback is active."
 
     def _combine_output(self, stdout: str, stderr: str) -> str | None:
         parts = [part.strip() for part in (stdout, stderr) if part and part.strip()]

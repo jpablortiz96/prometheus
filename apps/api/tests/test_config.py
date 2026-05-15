@@ -59,3 +59,25 @@ def test_cors_allowed_origins_env_var_extends_defaults(monkeypatch) -> None:
     assert "http://localhost:3001" in origins
     assert "http://10.0.0.7:3001" in origins
     assert origins.count("http://localhost:3001") == 1
+
+
+def test_cors_allowed_origin_regex_env_var(monkeypatch) -> None:
+    monkeypatch.setenv("CORS_ALLOWED_ORIGIN_REGEX", r"https://.*\.vercel\.app")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.resolved_cors_allowed_origin_regex() == r"https://.*\.vercel\.app"
+
+
+def test_resolve_repo_path_prefers_root_but_falls_back_to_api_dir() -> None:
+    settings = Settings(_env_file=None)
+
+    policy_path = settings.resolve_repo_path("infra/lobstertrap/prometheus_policy.yaml")
+    legacy_relative_policy_path = settings.resolve_repo_path(
+        "../../infra/lobstertrap/prometheus_policy.yaml"
+    )
+
+    assert policy_path == (ROOT_DIR / "infra/lobstertrap/prometheus_policy.yaml").resolve()
+    assert legacy_relative_policy_path == (
+        API_DIR / "../../infra/lobstertrap/prometheus_policy.yaml"
+    ).resolve()

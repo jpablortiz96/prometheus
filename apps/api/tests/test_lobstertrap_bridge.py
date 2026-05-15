@@ -191,3 +191,28 @@ def test_cli_error_falls_back_without_crashing(
     assert result.fallback_reason is not None
     assert result.raw_lobstertrap_output is not None
     assert "policy_name is required" in result.raw_lobstertrap_output
+
+
+def test_public_status_hides_absolute_paths_and_raw_errors(tmp_path: Path) -> None:
+    policy_path = tmp_path / "policy.yaml"
+    write_policy(policy_path)
+
+    settings = make_settings(
+        enabled=True,
+        bin_path=str(tmp_path / "missing-lobstertrap"),
+        policy_path=str(policy_path),
+    )
+    bridge = LobsterTrapBridge(settings)
+
+    status = bridge.status(
+        gemini_configured=True,
+        gemini_available=False,
+        gemini_last_error="ValidationError: backend probe failed at D:\\PROMETHEUS\\secret",
+        active_policy_pack="finance",
+        database_available=True,
+    )
+
+    assert status.gemini_last_error == "Gemini backend validation failed. Deterministic fallback is active."
+    assert status.lobster_trap_last_error == "Lobster Trap binary not found."
+    assert status.lobster_trap_policy_path == "policy.yaml"
+    assert status.lobster_trap_bin_path == "missing-lobstertrap"
