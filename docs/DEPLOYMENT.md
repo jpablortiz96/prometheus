@@ -25,7 +25,7 @@ Local URLs:
 
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:8000`
-- FastAPI docs: `http://localhost:8000/api/docs`
+- FastAPI docs: `http://localhost:8000/docs`
 
 ## Environment model
 
