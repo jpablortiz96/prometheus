@@ -63,6 +63,7 @@ Create a Render Web Service with these settings:
 - Root Directory: `.`
 - Build Command: `bash scripts/render_build_api.sh`
 - Start Command: `bash scripts/render_start_api.sh`
+- Python Version: `3.12.8`
 
 The Render blueprint is also captured in `render.yaml`.
 
@@ -71,6 +72,7 @@ The Render blueprint is also captured in `render.yaml`.
 Set these in Render:
 
 ```dotenv
+PYTHON_VERSION=3.12.8
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 GEMINI_REASONING_MODEL=gemini-3.1-pro-preview
 GEMINI_FAST_MODEL=gemini-3-flash-preview
@@ -96,12 +98,13 @@ Leave `INTEGRATION_STATUS_DEBUG` unset in normal production usage so `/api/integ
 `scripts/render_build_api.sh` does the following:
 
 1. Resolves the repo root safely.
-2. Installs `uv` if needed.
-3. Runs `uv sync` inside `apps/api`.
-4. Prepares `tools/lobstertrap`.
-5. Attempts to clone `https://github.com/veeainc/lobstertrap.git` if the source is not already present.
-6. Attempts `make build` when `go` and `make` are available.
-7. Prints diagnostics for Python, `uv`, Lobster Trap binary presence, and policy-file presence.
+2. Upgrades `pip`.
+3. Installs `uv` through `python -m pip`.
+4. Runs `python -m uv sync` inside `apps/api`.
+5. Prepares `tools/lobstertrap`.
+6. Attempts to clone `https://github.com/veeainc/lobstertrap.git` if the source is not already present.
+7. Attempts `make build` when `go` and `make` are available.
+8. Prints diagnostics for Python, `uv`, Lobster Trap binary presence, and policy-file presence.
 
 If Lobster Trap cannot be cloned or built, the backend still starts and uses deterministic fallback mode.
 
