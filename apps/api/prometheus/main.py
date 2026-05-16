@@ -165,6 +165,21 @@ async def legacy_openapi_redirect() -> RedirectResponse:
     return RedirectResponse(url="/openapi.json")
 
 
+@app.get("/", include_in_schema=False)
+async def root() -> dict[str, str]:
+    return {
+        "name": "PROMETHEUS API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
+@app.head("/", include_in_schema=False)
+async def root_head() -> None:
+    return None
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health(
     runtime: PrometheusRuntime = Depends(get_runtime),

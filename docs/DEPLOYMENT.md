@@ -73,6 +73,7 @@ Set these in Render:
 
 ```dotenv
 PYTHON_VERSION=3.12.8
+GO_VERSION=1.23.4
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 GEMINI_REASONING_MODEL=gemini-3.1-pro-preview
 GEMINI_FAST_MODEL=gemini-3-flash-preview
@@ -101,10 +102,11 @@ Leave `INTEGRATION_STATUS_DEBUG` unset in normal production usage so `/api/integ
 2. Upgrades `pip`.
 3. Installs `uv` through `python -m pip`.
 4. Runs `python -m uv sync` inside `apps/api`.
-5. Prepares `tools/lobstertrap`.
-6. Attempts to clone `https://github.com/veeainc/lobstertrap.git` if the source is not already present.
-7. Attempts `make build` when `go` and `make` are available.
-8. Prints diagnostics for Python, `uv`, Lobster Trap binary presence, and policy-file presence.
+5. Installs Go locally when `go` is missing, using `GO_VERSION` and the detected Linux architecture.
+6. Prepares `tools/lobstertrap`.
+7. Attempts to clone `https://github.com/veeainc/lobstertrap.git` if the source is not already present.
+8. Attempts `make build` after exporting the local Go toolchain into `PATH`.
+9. Prints diagnostics for Python, `uv`, Go, Lobster Trap binary presence, and policy-file presence.
 
 If Lobster Trap cannot be cloned or built, the backend still starts and uses deterministic fallback mode.
 
