@@ -43,6 +43,21 @@ def test_health(client: TestClient) -> None:
     assert payload["mode"] in {"live-gemini", "deterministic-demo"}
 
 
+def test_root_route_supports_render_health_checks(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "name": "PROMETHEUS API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+    head_response = client.head("/")
+    assert head_response.status_code == 200
+
+
 def test_snapshot_contains_enterprise_sections(client: TestClient) -> None:
     response = client.get("/api/snapshot")
 

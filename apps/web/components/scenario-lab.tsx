@@ -16,6 +16,42 @@ type ScenarioFilters = {
   decision: string;
 };
 
+function formatDecisionLabel(decision: string) {
+  return decision === "HUMAN_REVIEW" ? "HUMAN REVIEW REQUIRED" : decision.replaceAll("_", " ");
+}
+
+function decisionBadgeClass(decision: string | null | undefined) {
+  switch (decision) {
+    case "BLOCK":
+      return "proof-badge proof-blocked";
+    case "QUARANTINE":
+      return "proof-badge proof-quarantined";
+    case "HUMAN_REVIEW":
+      return "proof-badge proof-review";
+    case "ALLOW":
+      return "proof-badge proof-allowed";
+    default:
+      return "proof-badge proof-muted";
+  }
+}
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) {
+    return "Unavailable";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(parsed);
+}
+
 function inferSeverity(riskScore: number) {
   if (riskScore >= 0.9) {
     return "critical";
@@ -46,6 +82,8 @@ export function ScenarioLab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [documentContent, setDocumentContent] = useState("");
   const [documentToolName, setDocumentToolName] = useState("contracts.rewrite");
   const [documentInspection, setDocumentInspection] = useState<DocumentInspectResponse | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [runningScenarioId, setRunningScenarioId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return scenarios.filter((scenario) => {
@@ -63,6 +101,39 @@ export function ScenarioLab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const selectedPolicyPack =
     snapshot.agents.find((agent) => agent.id === agentId)?.policyPack ??
     snapshot.integrationStatus.activePolicyPack;
+  const selectedScenario = useMemo(
+    () => (selectedScenarioId ? scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? null : null),
+    [scenarios, selectedScenarioId],
+  );
+  const selectedScenarioEvent = useMemo(
+    () => (selectedScenarioId ? snapshot.events.find((event) => event.scenarioId === selectedScenarioId) ?? null : null),
+    [selectedScenarioId, snapshot.events],
+  );
+  const scenarioToolCall = useMemo(() => {
+    if (!selectedScenarioId) {
+      return null;
+    }
+    if (!selectedScenarioEvent) {
+      return snapshot.lastToolCall;
+    }
+
+    return (
+      snapshot.recentToolCalls.find((decision) => decision.sourceEventId === selectedScenarioEvent.id) ??
+      (snapshot.lastToolCall?.sourceEventId === selectedScenarioEvent.id ? snapshot.lastToolCall : snapshot.lastToolCall)
+    );
+  }, [selectedScenarioEvent, selectedScenarioId, snapshot.lastToolCall, snapshot.recentToolCalls]);
+  const scenarioIncident =
+    selectedScenarioId && snapshot.activeIncident ? snapshot.activeIncident : null;
+
+  async function handleRunScenario(scenarioId: string) {
+    setSelectedScenarioId(scenarioId);
+    setRunningScenarioId(scenarioId);
+    try {
+      await runScenario(scenarioId);
+    } finally {
+      setRunningScenarioId(null);
+    }
+  }
 
   async function handleInspect() {
     const nextDecision = await runToolCall({
@@ -182,13 +253,108 @@ export function ScenarioLab({ apiBaseUrl }: { apiBaseUrl: string }) {
                   </div>
                   <p className="control-copy">{scenario.businessImpact}</p>
                   <div className="queue-actions">
-                    <button className="btn-redteam" type="button" onClick={() => startTransition(() => void runScenario(scenario.id))}>
-                      Run Scenario
+                    <button
+                      className="btn-redteam"
+                      type="button"
+                      disabled={runningScenarioId === scenario.id}
+                      onClick={() => startTransition(() => void handleRunScenario(scenario.id))}
+                    >
+                      {runningScenarioId === scenario.id ? "Running..." : "Run Scenario"}
                     </button>
                   </div>
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <div className="eyebrow">Scenario execution</div>
+                <h2>Live result</h2>
+              </div>
+              {scenarioToolCall ? (
+                <span className={decisionBadgeClass(scenarioToolCall.decision)}>
+                  {scenarioToolCall.toolExecuted ? "EXECUTED" : "BLOCKED BEFORE EXECUTION"}
+                </span>
+              ) : null}
+            </div>
+            {selectedScenario && (scenarioIncident || scenarioToolCall) ? (
+              <>
+                <div className="command-grid">
+                  <div className="command-item">
+                    <span>Scenario</span>
+                    <strong>{selectedScenario.name}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Status</span>
+                    <strong>{snapshot.statusMessage}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Incident</span>
+                    <strong>{scenarioIncident?.incidentId ?? selectedScenarioEvent?.id ?? "Pending"}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Gateway decision</span>
+                    <strong>{formatDecisionLabel(scenarioToolCall?.decision ?? selectedScenario.expectedDecision)}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Tool requested</span>
+                    <strong>{scenarioToolCall?.toolName ?? selectedScenario.blockedAction}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Tool executed</span>
+                    <strong>{scenarioToolCall?.toolExecuted ? "Yes" : "No"}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Risk score</span>
+                    <strong>{(scenarioToolCall?.riskScore ?? scenarioIncident?.riskScore ?? selectedScenario.riskScore).toFixed(2)}</strong>
+                  </div>
+                  <div className="command-item">
+                    <span>Updated</span>
+                    <strong>{formatTimestamp(scenarioToolCall?.createdAt ?? snapshot.lastUpdated)}</strong>
+                  </div>
+                </div>
+
+                <div className="panel-side-by-side" style={{ marginTop: "16px" }}>
+                  <div className="queue-card">
+                    <div className="drawer-label">Incident Command Center</div>
+                    <div className="queue-title" style={{ marginTop: "8px" }}>
+                      {scenarioIncident?.affectedAgent ?? selectedScenario.agentId}
+                    </div>
+                    <div className="queue-detail-row">
+                      <span>Declared: {scenarioIncident?.declaredIntent ?? selectedScenario.declaredIntent}</span>
+                      <span>Detected: {scenarioIncident?.detectedIntent ?? selectedScenario.detectedIntent}</span>
+                    </div>
+                    <div className="queue-detail-row">
+                      <span>Predicted: {scenarioIncident?.predictedAction ?? selectedScenario.predictedAction}</span>
+                      <span>Observed: {scenarioIncident?.observedAction ?? selectedScenario.observedAction}</span>
+                    </div>
+                    <p className="control-copy">
+                      {scenarioIncident?.businessImpact ?? selectedScenario.businessImpact}
+                    </p>
+                    <div className="queue-detail-row">
+                      <span>Compliance: {scenarioIncident?.complianceConcern ?? selectedScenario.complianceConcern}</span>
+                      <span>Department: {scenarioIncident?.department ?? selectedScenario.department}</span>
+                    </div>
+                  </div>
+
+                  <div className="audit-hash-shell">
+                    <div className="drawer-label">Gateway proof</div>
+                    <strong>{formatDecisionLabel(scenarioToolCall?.decision ?? selectedScenario.expectedDecision)}</strong>
+                    <p>Permission: {scenarioToolCall?.permissionEvaluation.permissionState ?? "pending"}</p>
+                    <p>Matched rules: {scenarioToolCall?.matchedRules.length ?? scenarioIncident?.policyMatched.length ?? 0}</p>
+                    <p>Side effect prevented: {scenarioToolCall?.sideEffectPrevented ?? "No side effect executed."}</p>
+                    <p>Audit hash: {scenarioToolCall?.auditHash ?? "Pending"}</p>
+                    <p>Reason: {scenarioToolCall?.reason ?? selectedScenario.explanation}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="control-copy">
+                Run a scenario to see the live gateway decision, active incident, and tool execution result here.
+              </p>
+            )}
           </section>
         </div>
 
